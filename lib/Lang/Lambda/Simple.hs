@@ -1,67 +1,113 @@
-module Lang.Lambda.Simple (LC(..)) where
+module Lang.Lambda.Simple (Term(..)) where
 
-import Text.ParserCombinators.ReadP
+import Control.Applicative
+-- import Data.Text(Text)
+import Text.Megaparsec
+import Text.Megaparsec.Text
+import qualified Text.Megaparsec.Lexer as Lexer
 
-data LC v = Var v
-          | Lam v (LC v)
-          | App (LC v) (LC v)
-          deriving (Eq,Show)
+data Term v = Var v
+            | Lam v (Term v)
+            | App (Term v) (Term v)
+            deriving (Eq,Show)
 
-instance (Read v) => Read (LC v) where
-    readsPrec _ = readP_to_S pLC
+type Name = String
 
-pLC, pLCAtom, pLCVar, pLCLam, pLCApp :: (Read v) => ReadP (LC v)
-pLC = pLCLam +++ pLCApp +++ pLCLet
+termParser :: Parser (Term Name)
+termParser = try lambdaParser
+         <|> try appParser
+         <|> try letParser
 
-pLCVar = 
-  do v <- pVar
-     return $ Var v
+varParser :: Parser Name
+varParser = (:) <$> letterChar <*> many (alphaNumChar <|> char '_') 
 
-pLCLam = 
-  do schar '\\'
-     v <- pVar
-     schar '.'
-     e <- pLC
-     return $ Lam v e
-
-pLCApp = 
-  do es <- many1 pLCAtom
-     return $ foldl1 App es
-
-pLCAtom = 
-    pLCVar 
-    +++ 
-    (do schar '('
-        e <- pLC
-        schar ')'
-        return e)
-
-pLCLet :: (Read v) => ReadP (LC v)
-pLCLet =
-  do sstring "let"
-     bs <- sepBy pDef (schar ';')
-     sstring "in"
-     e <- pLC
-     return $ foldr lcLet e bs
-  where
-    lcLet (x,e) b = App (Lam x b) e
-    pDef = 
-      do v <- pVar
-         schar '='
-         e <- pLC
-         return (v,e)
-
-schar :: Char -> ReadP Char
+schar :: Char -> Parser Char
 schar c = 
-  do skipSpaces
+  do space
      char c
 
-sstring :: String -> ReadP String
-sstring c =
-  do skipSpaces
-     string c
+lambdaParser :: Parser (Term Name)
+lambdaParser = 
+  do schar '\\'
+     v <- varParser
+     schar '.'
+     e <- termParser
+     return $ Lam v e
 
-pVar :: (Read v) => ReadP v
-pVar = 
-  do skipSpaces
-     readS_to_P (readsPrec 9)
+appParser :: Parser (Term Name)
+appParser = do
+    es <- liftA2 (:) atomParser (many atomParser)
+    return $ foldl1 App es
+    
+
+atomParser :: Parser (Term Name)
+atomParser = 
+    try (do space
+            Var <$> varParser)
+    <|> 
+    try (do schar '('
+            e <- termParser
+            schar ')'
+            return e)
+
+letParser :: Parser (Term Name)
+letParser = undefined
+
+-- instance (Read v) => Read (Term v) where
+--     readsPrec _ = readP_to_S pTerm
+-- 
+-- pTerm, pTermAtom, pTermVar, pTermLam, pTermApp :: (Read v) => ReadP (Term v)
+-- pTerm = pTermLam +++ pTermApp +++ pTermLet
+-- 
+-- pTermVar = 
+--   do v <- pVar
+--      return $ Var v
+-- 
+-- pTermLam = 
+--   do schar '\\'
+--      v <- pVar
+--      schar '.'
+--      e <- pTerm
+--      return $ Lam v e
+-- 
+-- pTermApp = 
+--   do es <- many1 pTermAtom
+--      return $ foldl1 App es
+-- 
+-- pTermAtom = 
+--     pTermVar 
+--     +++ 
+--     (do schar '('
+--         e <- pTerm
+--         schar ')'
+--         return e)
+-- 
+-- pTermLet :: (Read v) => ReadP (Term v)
+-- pTermLet =
+--   do sstring "let"
+--      bs <- sepBy pDef (schar ';')
+--      sstring "in"
+--      e <- pTerm
+--      return $ foldr lcLet e bs
+--   where
+--     lcLet (x,e) b = App (Lam x b) e
+--     pDef = 
+--       do v <- pVar
+--          schar '='
+--          e <- pTerm
+--          return (v,e)
+-- 
+-- schar :: Char -> ReadP Char
+-- schar c = 
+--   do skipSpaces
+--      char c
+-- 
+-- sstring :: String -> ReadP String
+-- sstring c =
+--   do skipSpaces
+--      string c
+-- 
+-- pVar :: (Read v) => ReadP v
+-- pVar = 
+--   do skipSpaces
+--      readS_to_P (readsPrec 9)
