@@ -1,7 +1,7 @@
-module Lang.Lambda.Simple (Term(..)) where
+module Lang.Lambda.Simple (Term(..),termParser,parseTerm,parseTermMaybe,parseTermTest) where
 
 import Control.Applicative
--- import Data.Text(Text)
+import Data.Text(Text)
 import Text.Megaparsec
 import Text.Megaparsec.Text
 import qualified Text.Megaparsec.Lexer as Lexer
@@ -13,18 +13,15 @@ data Term v = Var v
 
 type Name = String
 
+-- Pending problem: 
+-- Lang.Lambda.Simple> parseTermTest " let x = foo in x"
+-- App (Var "let") (Var "x")
+-- Make let and in reversed words
 termParser :: Parser (Term Name)
-termParser = try lambdaParser
+termParser = 
+             try lambdaParser
          <|> try appParser
-         <|> try letParser
-
-varParser :: Parser Name
-varParser = (:) <$> letterChar <*> many (alphaNumChar <|> char '_') 
-
-schar :: Char -> Parser Char
-schar c = 
-  do space
-     char c
+         <|> try letParser 
 
 lambdaParser :: Parser (Term Name)
 lambdaParser = 
@@ -38,12 +35,10 @@ appParser :: Parser (Term Name)
 appParser = do
     es <- liftA2 (:) atomParser (many atomParser)
     return $ foldl1 App es
-    
 
 atomParser :: Parser (Term Name)
 atomParser = 
-    try (do space
-            Var <$> varParser)
+    try (Var <$> varParser)
     <|> 
     try (do schar '('
             e <- termParser
@@ -51,7 +46,43 @@ atomParser =
             return e)
 
 letParser :: Parser (Term Name)
-letParser = undefined
+letParser = do
+    sstring "let"
+    bs <- sepBy defParser (schar ';')
+    sstring "in"
+    e <- termParser
+    return $ foldr lcLet e bs
+  where
+    lcLet (x,e) b = App (Lam x b) e
+    defParser = do
+        v <- varParser
+        schar '='
+        e <- termParser
+        return (v,e)
+
+varParser :: Parser Name
+varParser = do
+    space
+    (:) <$> letterChar <*> many (alphaNumChar <|> char '_') 
+
+schar :: Char -> Parser Char
+schar c = 
+  do space
+     char c
+
+sstring :: String -> Parser String
+sstring c =
+  do space
+     string c
+
+parseTerm :: Text -> Either (ParseError Char Dec) (Term Name)
+parseTerm = parse termParser ""
+
+parseTermMaybe :: Text -> Maybe (Term Name)
+parseTermMaybe = parseMaybe termParser
+
+parseTermTest :: Text -> IO ()
+parseTermTest = parseTest termParser
 
 -- instance (Read v) => Read (Term v) where
 --     readsPrec _ = readP_to_S pTerm
