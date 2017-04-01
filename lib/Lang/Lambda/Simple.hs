@@ -1,9 +1,14 @@
-module Lang.Lambda.Simple (Term(..),termParser,parseTerm,parseTermMaybe,parseTermTest) where
+{-# LANGUAGE FlexibleInstances #-}
+module Lang.Lambda.Simple (Term(..),termParser,parseTerm) where
 
 import Control.Applicative
 import Data.Text(Text)
+import Data.Functor.Identity
+import Control.Monad
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Writer
 import Text.Megaparsec
-import Text.Megaparsec.Text
+--import Text.Megaparsec.Text
 import qualified Text.Megaparsec.Lexer as Lexer
 
 data Term v = Var v
@@ -13,17 +18,37 @@ data Term v = Var v
 
 type Name = String
 
+type Parser m v = ParsecT Dec Text m v
+
+data DebugMessage = Msg String 
+                  | AName String
+                  deriving (Eq,Show)
+
+class Monad m => MonadDebug m where
+    debug :: DebugMessage -> m () 
+
+instance MonadDebug Identity where
+    debug _ = pure () 
+
+instance Monad m => MonadDebug (WriterT [DebugMessage] m) where
+    debug msg = tell [msg]
+
+instance (MonadDebug m,Stream t,ErrorComponent d) => MonadDebug (ParsecT d t m) where
+    debug = lift . debug
+
+
 -- Pending problem: 
 -- Lang.Lambda.Simple> parseTermTest " let x = foo in x"
 -- App (Var "let") (Var "x")
--- Make let and in reversed words
-termParser :: Parser (Term Name)
+-- Make let and in reserved words
+-- parseTerm "let x = a b; in x"
+termParser :: MonadDebug m => Parser m (Term Name)
 termParser = 
              try lambdaParser
          <|> try appParser
          <|> try letParser 
 
-lambdaParser :: Parser (Term Name)
+lambdaParser :: MonadDebug m => Parser m (Term Name)
 lambdaParser = 
   do schar '\\'
      v <- varParser
@@ -31,12 +56,12 @@ lambdaParser =
      e <- termParser
      return $ Lam v e
 
-appParser :: Parser (Term Name)
+appParser :: MonadDebug m => Parser m (Term Name)
 appParser = do
     es <- liftA2 (:) atomParser (many atomParser)
     return $ foldl1 App es
 
-atomParser :: Parser (Term Name)
+atomParser :: MonadDebug m => Parser m (Term Name)
 atomParser = 
     try (Var <$> varParser)
     <|> 
@@ -45,10 +70,11 @@ atomParser =
             schar ')'
             return e)
 
-letParser :: Parser (Term Name)
+letParser :: MonadDebug m => Parser m (Term Name)
 letParser = do
     sstring "let"
-    bs <- sepBy defParser (schar ';')
+    bs <- sepBy1 (defParser) 
+                 (char ';')
     sstring "in"
     e <- termParser
     return $ foldr lcLet e bs
@@ -56,89 +82,38 @@ letParser = do
     lcLet (x,e) b = App (Lam x b) e
     defParser = do
         v <- varParser
+        debug $ Msg ("var " ++ show v)
         schar '='
         e <- termParser
+        debug $ Msg ("term " ++ show e)
+        space
         return (v,e)
 
-varParser :: Parser Name
+reservedWords :: [String] 
+reservedWords = ["let","in"]
+
+varParser :: MonadDebug m => Parser m Name
 varParser = do
     space
-    (:) <$> letterChar <*> many (alphaNumChar <|> char '_') 
+    identifier <- (:) <$> letterChar <*> many (alphaNumChar <|> char '_')
+    debug $ AName identifier 
+    if identifier `elem` reservedWords
+    then do debug $ Msg ("oops " ++ show identifier)
+            fail $ "keyword " ++ show identifier ++ " cannot be an identifier"
+    else return identifier
 
-schar :: Char -> Parser Char
+schar :: Char -> Parser m Char
 schar c = 
   do space
      char c
 
-sstring :: String -> Parser String
+sstring :: String -> Parser m String
 sstring c =
   do space
      string c
 
-parseTerm :: Text -> Either (ParseError Char Dec) (Term Name)
-parseTerm = parse termParser ""
+-- Lang.Lambda.Simple> parseTerm  "let x = a b ; y = z in x"
+-- Lang.Lambda.Simple> parseTerm  "let x = a b in x"
+parseTerm :: Text -> (Either (ParseError Char Dec) (Term Name),[DebugMessage])
+parseTerm text = runWriter (runParserT termParser "" text)
 
-parseTermMaybe :: Text -> Maybe (Term Name)
-parseTermMaybe = parseMaybe termParser
-
-parseTermTest :: Text -> IO ()
-parseTermTest = parseTest termParser
-
--- instance (Read v) => Read (Term v) where
---     readsPrec _ = readP_to_S pTerm
--- 
--- pTerm, pTermAtom, pTermVar, pTermLam, pTermApp :: (Read v) => ReadP (Term v)
--- pTerm = pTermLam +++ pTermApp +++ pTermLet
--- 
--- pTermVar = 
---   do v <- pVar
---      return $ Var v
--- 
--- pTermLam = 
---   do schar '\\'
---      v <- pVar
---      schar '.'
---      e <- pTerm
---      return $ Lam v e
--- 
--- pTermApp = 
---   do es <- many1 pTermAtom
---      return $ foldl1 App es
--- 
--- pTermAtom = 
---     pTermVar 
---     +++ 
---     (do schar '('
---         e <- pTerm
---         schar ')'
---         return e)
--- 
--- pTermLet :: (Read v) => ReadP (Term v)
--- pTermLet =
---   do sstring "let"
---      bs <- sepBy pDef (schar ';')
---      sstring "in"
---      e <- pTerm
---      return $ foldr lcLet e bs
---   where
---     lcLet (x,e) b = App (Lam x b) e
---     pDef = 
---       do v <- pVar
---          schar '='
---          e <- pTerm
---          return (v,e)
--- 
--- schar :: Char -> ReadP Char
--- schar c = 
---   do skipSpaces
---      char c
--- 
--- sstring :: String -> ReadP String
--- sstring c =
---   do skipSpaces
---      string c
--- 
--- pVar :: (Read v) => ReadP v
--- pVar = 
---   do skipSpaces
---      readS_to_P (readsPrec 9)
