@@ -9,7 +9,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Writer
 import Text.Megaparsec
 
-import Lang.Lambda
+import Lang.Lambda.Types
 
 {- $setup
 

@@ -1,7 +1,7 @@
-module Lang.Lambda (Term(..)) where
+module Lang.Lambda (
+        module Lang.Lambda.Types
+    ,   module Lang.Lambda.Parser
+    ) where
 
-data Term v = Var v
-            | Lam v (Term v)
-            | App (Term v) (Term v)
-            deriving (Eq,Show)
-
+import Lang.Lambda.Types
+import Lang.Lambda.Parser

@@ -16,8 +16,10 @@ source-repository head
     location: https://github.com/danidiaz/lambda-kochbuch.git
 
 library
-  exposed-modules:     Lang.Lambda.Parser
-                       Lang.Lambda
+  exposed-modules:     Lang.Lambda
+                       Lang.Lambda.Types
+                       Lang.Lambda.Parser
+                       
   build-depends:
                        base          >= 4.6   && < 5,
                        text          >= 1.2.2,
@@ -34,6 +36,7 @@ test-suite doctests
   hs-source-dirs:      tests,lib
   main-is:             doctests.hs
   other-modules:       Lang.Lambda
+                       Lang.Lambda.Types
                        Lang.Lambda.Parser
   build-depends:
                        base          >= 4.6    && < 5,
@@ -45,6 +48,7 @@ test-suite tests
   hs-source-dirs:      tests, lib
   main-is:             tests.hs
   other-modules:       Lang.Lambda
+                       Lang.Lambda.Types
                        Lang.Lambda.Parser
   build-depends:
                        base          >= 4.6 && <5,
