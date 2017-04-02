@@ -1,20 +1,15 @@
 {-# LANGUAGE FlexibleInstances #-}
-module Lang.Lambda.Simple (Term(..),termParser,parseTerm) where
+module Lang.Lambda.Parser (Name,parseTerm,parseTermDebug,DebugMessage(..)) where
 
 import Control.Applicative
-import Data.Text(Text)
+import Data.Text (Text)
 import Data.Functor.Identity
 import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Writer
 import Text.Megaparsec
---import Text.Megaparsec.Text
-import qualified Text.Megaparsec.Lexer as Lexer
 
-data Term v = Var v
-            | Lam v (Term v)
-            | App (Term v) (Term v)
-            deriving (Eq,Show)
+import Lang.Lambda
 
 type Name = String
 
@@ -36,15 +31,13 @@ instance Monad m => MonadDebug (WriterT [DebugMessage] m) where
 instance (MonadDebug m,Stream t,ErrorComponent d) => MonadDebug (ParsecT d t m) where
     debug = lift . debug
 
-
 -- Pending problem: 
 -- Lang.Lambda.Simple> parseTermTest " let x = foo in x"
 -- App (Var "let") (Var "x")
 -- Make let and in reserved words
 -- parseTerm "let x = a b; in x"
 termParser :: MonadDebug m => Parser m (Term Name)
-termParser = 
-             try lambdaParser
+termParser = try lambdaParser
          <|> try appParser
          <|> try letParser 
 
@@ -77,16 +70,14 @@ letParser = do
                  (char ';')
     sstring "in"
     e <- termParser
-    return $ foldr lcLet e bs
+    return $ foldr (\(x,e') b -> App (Lam x b) e') e bs
   where
-    lcLet (x,e) b = App (Lam x b) e
     defParser = do
         v <- varParser
         debug $ Msg ("var " ++ show v)
         schar '='
         e <- termParser
         debug $ Msg ("term " ++ show e)
---        space
         return (v,e)
 
 reservedWords :: [String] 
@@ -114,6 +105,9 @@ sstring c =
 
 -- Lang.Lambda.Simple> parseTerm  "let x = a b ; y = z in x"
 -- Lang.Lambda.Simple> parseTerm  "let x = a b in x"
-parseTerm :: Text -> (Either (ParseError Char Dec) (Term Name),[DebugMessage])
-parseTerm text = runWriter (runParserT termParser "" text)
+parseTermDebug :: Text -> (Either (ParseError Char Dec) (Term Name),[DebugMessage])
+parseTermDebug text = runWriter (runParserT termParser "" text)
+
+parseTerm :: Text -> Either (ParseError Char Dec) (Term Name)
+parseTerm = fst . parseTermDebug
 

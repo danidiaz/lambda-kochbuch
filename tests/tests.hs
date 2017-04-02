@@ -17,7 +17,7 @@ import Control.Monad
 import Test.Tasty
 import Test.Tasty.HUnit (testCase,assertEqual,assertBool)
 
-import Lang.Lambda.Simple
+import Lang.Lambda
 
 main :: IO ()
 main = defaultMain tests
