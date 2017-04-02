@@ -72,8 +72,8 @@ atomParser =
 letParser :: MonadDebug m => Parser m (Term Name)
 letParser = do
     sstring "let"
-    bs <- sepBy1 (defParser <* space)
-                 (char ';')
+    bs <- sepBy1 defParser
+                 (try (schar ';'))
     sstring "in"
     e <- termParser
     return $ foldr (\(x,e') b -> App (Lam x b) e') e bs
