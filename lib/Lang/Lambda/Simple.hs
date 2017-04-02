@@ -73,7 +73,7 @@ atomParser =
 letParser :: MonadDebug m => Parser m (Term Name)
 letParser = do
     sstring "let"
-    bs <- sepBy1 (defParser) 
+    bs <- sepBy1 defParser 
                  (char ';')
     sstring "in"
     e <- termParser
@@ -86,7 +86,7 @@ letParser = do
         schar '='
         e <- termParser
         debug $ Msg ("term " ++ show e)
-        space
+--        space
         return (v,e)
 
 reservedWords :: [String] 
