@@ -11,6 +11,12 @@ import Text.Megaparsec
 
 import Lang.Lambda
 
+{- $setup
+
+>>> :set -XOverloadedStrings
+    
+-}
+
 type Name = String
 
 type Parser m v = ParsecT Dec Text m v
@@ -78,6 +84,7 @@ letParser = do
         schar '='
         e <- termParser
         debug $ Msg ("term " ++ show e)
+        space
         return (v,e)
 
 reservedWords :: [String] 
@@ -108,6 +115,21 @@ sstring c =
 parseTermDebug :: Text -> (Either (ParseError Char Dec) (Term Name),[DebugMessage])
 parseTermDebug text = runWriter (runParserT termParser "" text)
 
+{-| 
+
+>>> parseTerm  "let x = a b in f x"
+Right (App (Lam "x" (App (Var "f") (Var "x"))) (App (Var "a") (Var "b")))
+
+>>> parseTerm  "let x = a ; y = b in x"
+Right (App (Lam "x" (App (Lam "y" (Var "x")) (Var "b"))) (Var "a"))
+
+>>> parseTerm  "\\a.\\b.a b"
+Right (Lam "a" (Lam "b" (App (Var "a") (Var "b"))))
+
+>>> parseTerm  "a (b c)"
+Right (App (Var "a") (App (Var "b") (Var "c")))
+
+-}
 parseTerm :: Text -> Either (ParseError Char Dec) (Term Name)
 parseTerm = fst . parseTermDebug
 
