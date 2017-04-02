@@ -72,7 +72,7 @@ atomParser =
 letParser :: MonadDebug m => Parser m (Term Name)
 letParser = do
     sstring "let"
-    bs <- sepBy1 defParser 
+    bs <- sepBy1 (defParser <* space)
                  (char ';')
     sstring "in"
     e <- termParser
@@ -84,7 +84,6 @@ letParser = do
         schar '='
         e <- termParser
         debug $ Msg ("term " ++ show e)
-        space
         return (v,e)
 
 reservedWords :: [String] 
@@ -116,6 +115,9 @@ parseTermDebug :: Text -> (Either (ParseError Char Dec) (Term Name),[DebugMessag
 parseTermDebug text = runWriter (runParserT termParser "" text)
 
 {-| 
+
+>>> parseTerm  "let x = a in x"
+Right (App (Lam "x" (Var "x")) (Var "a"))
 
 >>> parseTerm  "let x = a b in f x"
 Right (App (Lam "x" (App (Var "f") (Var "x"))) (App (Var "a") (Var "b")))
