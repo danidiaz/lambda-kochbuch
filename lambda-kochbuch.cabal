@@ -19,6 +19,7 @@ library
   exposed-modules:     Lang.Lambda
                        Lang.Lambda.Types
                        Lang.Lambda.Parser
+                       Lang.Lambda.Printer
                        
   build-depends:
                        base          >= 4.6   && < 5,
@@ -39,6 +40,7 @@ test-suite doctests
   other-modules:       Lang.Lambda
                        Lang.Lambda.Types
                        Lang.Lambda.Parser
+                       Lang.Lambda.Printer
   build-depends:
                        base          >= 4.6    && < 5,
                        doctest       >= 0.11
@@ -51,6 +53,7 @@ test-suite tests
   other-modules:       Lang.Lambda
                        Lang.Lambda.Types
                        Lang.Lambda.Parser
+                       Lang.Lambda.Printer
   build-depends:
                        base          >= 4.6 && <5,
                        text          >= 1.2.2,
