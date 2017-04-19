@@ -15,3 +15,5 @@
 [Simpler, Easier!](http://augustss.blogspot.com.es/2007/10/simpler-easier-in-recent-paper-simply.html)
 
 [Simple, Easy!](https://www.reddit.com/r/programming/comments/5ytek/simply_easy_an_implementation_of_a_dependently/c02aj2e/)
+
+["My particular take in a minimalist, simple & fast implementation of the Calculus of Constructions"](https://www.reddit.com/r/haskell/comments/62gnhp/my_particular_take_in_a_minimalist_simple_fast/) [JS implementation](https://github.com/MaiaVictor/calculus-of-constructions)
